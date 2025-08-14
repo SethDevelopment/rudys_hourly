@@ -1,8 +1,6 @@
 name: Build iOS IPA
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -10,56 +8,66 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      # 1️⃣ Checkout the repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Set up Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.13.2'
+      # 2️⃣ Setup Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
 
-    - name: Decode iOS certificate
-      run: |
-        echo "${{ secrets.IOS_CERTIFICATE }}" | base64 --decode > ios_certificate.p12
+      # 3️⃣ Install Flutter dependencies
+      - name: Install dependencies
+        run: flutter pub get
 
-    - name: Decode provisioning profile
-      run: |
-        echo "${{ secrets.IOS_PROVISIONING_PROFILE }}" | base64 --decode > ios_profile.mobileprovision
+      # 4️⃣ Install CocoaPods
+      - name: Install CocoaPods
+        run: |
+          sudo gem install cocoapods
+          pod repo update
+          cd ios
+          pod install
+          cd ..
 
-    - name: Install CocoaPods
-      run: |
-        brew install cocoapods
-        cd ios
-        pod install
+      # 5️⃣ Flutter clean
+      - name: Flutter clean
+        run: flutter clean
 
-    - name: Import signing certificate
-      run: |
-        security create-keychain -p "" build.keychain
-        security default-keychain -s build.keychain
-        security unlock-keychain -p "" build.keychain
-        security import ios_certificate.p12 -k build.keychain -P ${{ secrets.IOS_CERT_PASSWORD }} -T /usr/bin/codesign
+      # 6️⃣ Setup code signing
+      - name: Setup code signing
+        uses: apple-actions/import-codesign-certs@v1
+        with:
+          p12-file-base64: ${{ secrets.IOS_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_P12_PASSWORD }}
+          provisioning-profile-base64: ${{ secrets.IOS_PROV_PROFILE_BASE64 }}
 
-    - name: Copy provisioning profile
-      run: |
-        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-        cp ios_profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+      # 7️⃣ Get version and build number from pubspec.yaml
+      - name: Get app version
+        id: app_version
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}')
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          DATE=$(date +%Y%m%d%H%M)
+          echo "BUILD_DATE=$DATE" >> $GITHUB_ENV
 
-    - name: Build iOS IPA
-      run: |
-        flutter clean
-        flutter build ios --release --no-codesign
-        cd ios
-        xcodebuild -workspace Runner.xcworkspace -scheme Runner \
-          -configuration Release \
-          -allowProvisioningUpdates \
-          -archivePath $PWD/build/Runner.xcarchive archive
-        xcodebuild -exportArchive \
-          -archivePath $PWD/build/Runner.xcarchive \
-          -exportOptionsPlist ExportOptions.plist \
-          -exportPath $PWD/build/Runner.ipa
+      # 8️⃣ Build iOS release with automatic codesigning
+      - name: Build iOS IPA
+        run: flutter build ios --release --no-codesign=false
 
-    - name: Upload IPA
-      uses: actions/upload-artifact@v4
-      with:
-        name: RudysHourly.ipa
-        path: ios/build/Runner.ipa
+      # 9️⃣ Package IPA with version & date
+      - name: Package IPA
+        run: |
+          mkdir -p build/ipa
+          cp -r build/ios/iphoneos/Runner.app build/ipa/
+          cd build/ipa
+          zip -r "RudysHourly_${APP_VERSION}_${BUILD_DATE}.ipa" Runner.app
+          cd ../..
+
+      # 🔟 Upload IPA
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: "RudysHourly_${APP_VERSION}_${BUILD_DATE}.ipa"
+          path: build/ipa/"RudysHourly_${APP_VERSION}_${BUILD_DATE}.ipa"
