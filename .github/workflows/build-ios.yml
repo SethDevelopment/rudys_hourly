@@ -50,3 +50,11 @@ jobs:
     - name: Build iOS IPA
       run: |
         flutter build ipa --release --no-codesign=false
+
+     # 8️⃣ Upload the IPA so you can download it
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: RudysHourly-iOS
+        path: build/ios/ipa/Runner.ipa
+
