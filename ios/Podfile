@@ -1,12 +1,28 @@
 # Uncomment this line to define a global platform for your project
 platform :ios, '13.0'
 
-ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+# CocoaPods analytics sends network stats. Uncomment to disable.
+# ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-use_frameworks!
-use_modular_headers!
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
 
-# Prepare all Flutter plugins
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  raise "Generated.xcconfig must exist. Run 'flutter pub get' first." unless File.exist?(generated_xcode_build_settings_path)
+  File.expand_path(File.join('..', '..', 'flutter'), generated_xcode_build_settings_path)
+end
+
+require File.expand_path(File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper'))
+
 target 'Runner' do
-  flutter_install_all_ios_pods(File.dirname(File.realpath(__FILE__)))
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_ios_podfile_setup
+
+  # Pods for Runner
 end
