@@ -16,7 +16,7 @@ jobs:
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.13.2' # replace with your Flutter version
+        flutter-version: '3.13.2'
 
     - name: Decode iOS certificate
       run: |
@@ -28,8 +28,9 @@ jobs:
 
     - name: Install CocoaPods
       run: |
-        sudo gem install cocoapods
-        cd ios && pod install
+        brew install cocoapods
+        cd ios
+        pod install
 
     - name: Import signing certificate
       run: |
