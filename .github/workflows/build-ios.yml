@@ -16,7 +16,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.13.6
+          flutter-version: stable
 
       # 3️⃣ Install Flutter dependencies
       - name: Install dependencies
@@ -35,12 +35,14 @@ jobs:
       - name: Flutter clean
         run: flutter clean
 
-      # 6️⃣ Import certificate
+      # 6️⃣ Import P12 certificate
       - name: Import P12 certificate
         uses: apple-actions/import-codesign-certs@v1
         with:
           p12-file-base64: ${{ secrets.IOS_P12_BASE64 }}
           p12-password: ${{ secrets.IOS_P12_PASSWORD }}
+          keychain: signing_temp
+          create-keychain: true
 
       # 7️⃣ Install provisioning profile
       - name: Install provisioning profile
@@ -48,7 +50,7 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "${{ secrets.IOS_PROV_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
 
-      # 8️⃣ Get app version and build date
+      # 8️⃣ Get app version and build timestamp
       - name: Get app version
         id: app_version
         run: |
