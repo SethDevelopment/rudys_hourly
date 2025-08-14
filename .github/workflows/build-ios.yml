@@ -1,85 +1,52 @@
 name: Build iOS IPA
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # allows manual trigger
 
 jobs:
-  build-ios:
+  build:
     runs-on: macos-latest
 
     steps:
-      # 1️⃣ Checkout the repo
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    # 1️⃣ Checkout the repo
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      # 2️⃣ Setup Flutter
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: 3.13.6
+    # 2️⃣ Setup Flutter
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.13.6' # match your local version
 
-      # 3️⃣ Install Flutter dependencies
-      - name: Install dependencies
-        run: flutter pub get
+    # 3️⃣ Get Flutter dependencies
+    - name: Flutter Pub Get
+      run: flutter pub get
 
-      # 4️⃣ Install CocoaPods
-      - name: Install CocoaPods
-        run: |
-         sudo gem install cocoapods
-         cd ios
-          pod repo update        # ensure latest pod specs
-          pod install --verbose  # force install all pods
-          cd ..
+    # 4️⃣ Clean previous builds
+    - name: Flutter Clean
+      run: flutter clean
 
+    # 5️⃣ Install CocoaPods & update repo
+    - name: Install CocoaPods
+      run: |
+        sudo gem install cocoapods
+        cd ios
+        pod repo update
+        pod install --verbose
+        cd ..
 
-      # 5️⃣ Flutter clean
-      - name: Flutter clean
-        run: flutter clean
+    # 6️⃣ Import your p12 & provisioning profile
+    - name: Import Codesign Certificates
+      uses: apple-actions/import-codesign-certs@v1
+      with:
+        keychain: signing_temp
+        create-keychain: true
+        keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
+        p12-file-base64: ${{ secrets.P12_BASE64 }}
+        p12-password: ${{ secrets.P12_PASSWORD }}
+        provisioning-profile-base64: ${{ secrets.PROV_PROFILE_BASE64 }}
 
-      - name: Get dependencies
-        run: flutter pub get
-
-
-      # 6️⃣ Import P12 certificate
-      - name: Import P12 certificate
-        uses: apple-actions/import-codesign-certs@v1
-        with:
-          p12-file-base64: ${{ secrets.IOS_CERTIFICATE }}
-          p12-password: ${{ secrets.IOS_CERT_PASSWORD }}
-          keychain: signing_temp
-          create-keychain: true
-
-      # 7️⃣ Install provisioning profile
-      - name: Install provisioning profile
-        run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "${{ secrets.IOS_PROVISIONING_PROFILE}}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
-
-      # 8️⃣ Get app version and build timestamp
-      - name: Get app version
-        id: app_version
-        run: |
-          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}')
-          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
-          DATE=$(date +%Y%m%d%H%M)
-          echo "BUILD_DATE=$DATE" >> $GITHUB_ENV
-
-      # 9️⃣ Build iOS release
-      - name: Build iOS IPA
-        run: flutter build ios --release --no-codesign=false
-
-      # 🔟 Package IPA
-      - name: Package IPA
-        run: |
-          mkdir -p build/ipa
-          cp -r build/ios/iphoneos/Runner.app build/ipa/
-          cd build/ipa
-          zip -r "RudysHourly_${APP_VERSION}_${BUILD_DATE}.ipa" Runner.app
-          cd ../..
-
-      # 1️⃣1️⃣ Upload IPA
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: "RudysHourly_${APP_VERSION}_${BUILD_DATE}.ipa"
-          path: build/ipa/"RudysHourly_${APP_VERSION}_${BUILD_DATE}.ipa"
+    # 7️⃣ Build the iOS release IPA
+    - name: Build iOS IPA
+      run: |
+        flutter build ipa --release --no-codesign=false
