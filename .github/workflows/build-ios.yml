@@ -16,7 +16,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.13.0
+          flutter-version: stable
 
       # 3️⃣ Install Flutter dependencies
       - name: Install dependencies
@@ -35,15 +35,20 @@ jobs:
       - name: Flutter clean
         run: flutter clean
 
-      # 6️⃣ Setup code signing
-      - name: Setup code signing
+      # 6️⃣ Import certificate
+      - name: Import P12 certificate
         uses: apple-actions/import-codesign-certs@v1
         with:
           p12-file-base64: ${{ secrets.IOS_P12_BASE64 }}
           p12-password: ${{ secrets.IOS_P12_PASSWORD }}
-          provisioning-profile-base64: ${{ secrets.IOS_PROV_PROFILE_BASE64 }}
 
-      # 7️⃣ Get version and build number from pubspec.yaml
+      # 7️⃣ Install provisioning profile
+      - name: Install provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.IOS_PROV_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
+
+      # 8️⃣ Get app version and build date
       - name: Get app version
         id: app_version
         run: |
@@ -52,11 +57,11 @@ jobs:
           DATE=$(date +%Y%m%d%H%M)
           echo "BUILD_DATE=$DATE" >> $GITHUB_ENV
 
-      # 8️⃣ Build iOS release with automatic codesigning
+      # 9️⃣ Build iOS release
       - name: Build iOS IPA
         run: flutter build ios --release --no-codesign=false
 
-      # 9️⃣ Package IPA with version & date
+      # 🔟 Package IPA
       - name: Package IPA
         run: |
           mkdir -p build/ipa
@@ -65,7 +70,7 @@ jobs:
           zip -r "RudysHourly_${APP_VERSION}_${BUILD_DATE}.ipa" Runner.app
           cd ../..
 
-      # 🔟 Upload IPA
+      # 1️⃣1️⃣ Upload IPA
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
