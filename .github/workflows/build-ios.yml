@@ -1,0 +1,64 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.13.2' # replace with your Flutter version
+
+    - name: Decode iOS certificate
+      run: |
+        echo "${{ secrets.IOS_CERTIFICATE }}" | base64 --decode > ios_certificate.p12
+
+    - name: Decode provisioning profile
+      run: |
+        echo "${{ secrets.IOS_PROVISIONING_PROFILE }}" | base64 --decode > ios_profile.mobileprovision
+
+    - name: Install CocoaPods
+      run: |
+        sudo gem install cocoapods
+        cd ios && pod install
+
+    - name: Import signing certificate
+      run: |
+        security create-keychain -p "" build.keychain
+        security default-keychain -s build.keychain
+        security unlock-keychain -p "" build.keychain
+        security import ios_certificate.p12 -k build.keychain -P ${{ secrets.IOS_CERT_PASSWORD }} -T /usr/bin/codesign
+
+    - name: Copy provisioning profile
+      run: |
+        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+        cp ios_profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+
+    - name: Build iOS IPA
+      run: |
+        flutter clean
+        flutter build ios --release --no-codesign
+        cd ios
+        xcodebuild -workspace Runner.xcworkspace -scheme Runner \
+          -configuration Release \
+          -allowProvisioningUpdates \
+          -archivePath $PWD/build/Runner.xcarchive archive
+        xcodebuild -exportArchive \
+          -archivePath $PWD/build/Runner.xcarchive \
+          -exportOptionsPlist ExportOptions.plist \
+          -exportPath $PWD/build/Runner.ipa
+
+    - name: Upload IPA
+      uses: actions/upload-artifact@v3
+      with:
+        name: RudysHourly.ipa
+        path: ios/build/Runner.ipa
