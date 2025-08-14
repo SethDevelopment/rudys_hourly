@@ -58,7 +58,7 @@ jobs:
           -exportPath $PWD/build/Runner.ipa
 
     - name: Upload IPA
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: RudysHourly.ipa
         path: ios/build/Runner.ipa
