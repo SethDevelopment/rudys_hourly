@@ -25,15 +25,20 @@ jobs:
       # 4️⃣ Install CocoaPods
       - name: Install CocoaPods
         run: |
-          sudo gem install cocoapods
-          pod repo update
-          cd ios
-          pod install
+         sudo gem install cocoapods
+         cd ios
+          pod repo update        # ensure latest pod specs
+          pod install --verbose  # force install all pods
           cd ..
+
 
       # 5️⃣ Flutter clean
       - name: Flutter clean
         run: flutter clean
+
+      - name: Get dependencies
+        run: flutter pub get
+
 
       # 6️⃣ Import P12 certificate
       - name: Import P12 certificate
