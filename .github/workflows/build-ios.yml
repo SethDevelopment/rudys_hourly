@@ -18,13 +18,16 @@ jobs:
       with:
         flutter-version: '3.13.6' # match your local version
 
+
+        # 4️⃣ Clean previous builds
+    - name: Flutter Clean
+      run: flutter clean
+
     # 3️⃣ Get Flutter dependencies
     - name: Flutter Pub Get
       run: flutter pub get
 
-    # 4️⃣ Clean previous builds
-    - name: Flutter Clean
-      run: flutter clean
+  
 
     # 5️⃣ Install CocoaPods & update repo
     - name: Install CocoaPods
